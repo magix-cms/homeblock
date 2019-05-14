@@ -3,6 +3,7 @@ Plugin homeblock for Magix CMS 3
 
 Ajouter un block de contenu sur la page d'accueil de votre site internet.
 
+![homeblock](https://user-images.githubusercontent.com/356674/57684138-7c2a4500-7635-11e9-9136-dc9716df5670.png)
 
 ## Installation
  * Décompresser l'archive dans le dossier "plugins" de magix cms
