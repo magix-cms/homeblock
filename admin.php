@@ -1,40 +1,51 @@
 <?php
 require_once('db.php');
-class plugins_homeblock_admin extends plugins_homeblock_db
-{
-    protected $controller,$data,$template, $message, $plugins,$modelLanguage,$collectionLanguage,$header;
-    public $edit, $action, $id;
+class plugins_homeblock_admin extends plugins_homeblock_db {
+	/**
+	 * @var backend_model_template $template
+	 * @var backend_model_data $data
+	 * @var component_core_message $message
+	 * @var backend_controller_plugins $plugins
+	 * @var backend_model_language $modelLanguage
+	 * @var component_collections_language $collectionLanguage
+	 */
+	protected backend_model_template $template;
+	protected backend_model_data $data;
+	protected component_core_message $message;
+	protected backend_controller_plugins $plugins;
+	protected backend_model_language $modelLanguage;
+	protected component_collections_language $collectionLanguage;
+
+	/**
+	 * @var int $edit
+	 * @var int $id
+	 */
+    public int
+		$edit,
+		$id;
+
+	/**
+	 * @var string $action
+	 */
+    public string $action;
+
     /**
-     * Page title and content
-     * @var array
+     * @var array $content
      */
-    public $content;
-    /**
-     * constructeur
-     */
-    public function __construct()
-    {
+    public array $content;
+
+    public function __construct() {
         $this->template = new backend_model_template();
+		$this->data = new backend_model_data($this);
+		$this->message = new component_core_message($this->template);
         $this->plugins = new backend_controller_plugins();
-        $formClean = new form_inputEscape();
-        $this->message = new component_core_message($this->template);
-        $this->data = new backend_model_data($this);
-        $this->header = new http_header();
         $this->modelLanguage = new backend_model_language($this->template);
         $this->collectionLanguage = new component_collections_language();
 
         // --- Get
-        if(http_request::isGet('controller')) {
-            $this->controller = $formClean->simpleClean($_GET['controller']);
-        }
-        if (http_request::isGet('edit')) {
-            $this->edit = $formClean->numeric($_GET['edit']);
-        }
-        if (http_request::isGet('action')) {
-            $this->action = $formClean->simpleClean($_GET['action']);
-        } elseif (http_request::isPost('action')) {
-            $this->action = $formClean->simpleClean($_POST['action']);
-        }
+        if(http_request::isGet('edit')) $this->edit = form_inputEscape::numeric($_GET['edit']);
+        if(http_request::isRequest('action')) $this->action = form_inputEscape::simpleClean($_REQUEST['action']);
+
         // POST
 
         // - Content
@@ -42,142 +53,108 @@ class plugins_homeblock_admin extends plugins_homeblock_db
             $array = $_POST['content'];
             foreach($array as $key => $arr) {
                 foreach($arr as $k => $v) {
-                    $array[$key][$k] = ($k == 'content_homeblock') ? $formClean->cleanQuote($v) : $formClean->simpleClean($v);
+                    $array[$key][$k] = ($k == 'content_homeblock') ? form_inputEscape::cleanQuote($v) : form_inputEscape::simpleClean($v);
                 }
             }
             $this->content = $array;
         }
     }
+
     /**
      * Method to override the name of the plugin in the admin menu
      * @return string
      */
-    public function getExtensionName()
-    {
+    public function getExtensionName(): string {
         return $this->template->getConfigVars('homeblock_plugin');
     }
-    /**
-     * Assign data to the defined variable or return the data
-     * @param string $type
-     * @param string|int|null $id
-     * @param string $context
-     * @param boolean $assign
-     * @return mixed
-     */
-    private function getItems($type, $id = null, $context = null, $assign = true) {
-        return $this->data->getItems($type, $id, $context, $assign);
-    }
-    /**
-     * @param $data
-     * @return array
-     */
-    private function setItemContentData($data)
-    {
-        $arr = array();
-        foreach ($data as $page) {
-            if (!array_key_exists($page['id_homeblock'], $arr)) {
-                $arr[$page['id_homeblock']] = array();
-                $arr[$page['id_homeblock']]['id_homeblock'] = $page['id_homeblock'];
-            }
-            $arr[$page['id_homeblock']]['content'][$page['id_lang']] = array(
-                'id_lang'          => $page['id_lang'],
-                'name_homeblock'        => $page['name_homeblock'],
-                'content_homeblock'     => $page['content_homeblock'],
-                'published_homeblock'   => $page['published_homeblock']
-            );
-        }
-        return $arr;
-    }
 
+	/**
+	 * Assign data to the defined variable or return the data
+	 * @param string $type
+	 * @param array|int|null $id
+	 * @param string|null $context
+	 * @param boolean|string $assign
+	 * @return mixed
+	 */
+	private function getItems(string $type, $id = null, string $context = null, $assign = true) {
+		return $this->data->getItems($type, $id, $context, $assign);
+	}
+
+	// --- Database actions
     /**
      * Insert data
-     * @param array $config
-     * @throws Exception
+	 * @param string $type
+	 * @param array $params
      */
-    private function add($config)
-    {
-        switch ($config['type']) {
+    private function add(string $type, array $params) {
+        switch ($type) {
             case 'content':
-                parent::insert(
-                    array('type' => $config['type']),
-                    $config['data']
-                );
+                parent::insert(['type' => $type], $params);
                 break;
         }
     }
 
     /**
      * Update data
-     * @param array $config
-     * @throws Exception
+     * @param string $type
+     * @param array $params
      */
-    private function upd($config)
-    {
-        switch ($config['type']) {
+    private function upd(string $type, array $params) {
+        switch ($type) {
             case 'content':
-                parent::update(
-                    array('type' => $config['type']),
-                    $config['data']
-                );
+                parent::update(['type' => $type], $params);
                 break;
         }
     }
-    /**
-     * set Data from database
-     * @access private
-     */
-    private function getBuildItems($data)
-    {
-        switch($data['type']){
-            case 'content':
-                $collection = $this->getItems('pages',null,'all',false);
-                return $this->setItemContentData($collection);
-                break;
-        }
-    }
+	// --------------------
+
     /**
      *
      */
-    public function run()
-    {
+    public function run() {
+		if(http_request::isMethod('POST')) {
+			if (isset($this->action) && $this->action === 'edit' && !empty($this->content)) {
+				//$root = parent::fetchData(['context' => 'one', 'type' => 'root']);
+				$root = $this->getItems('root',null,'one',false);
+				if (!$root) {
+					parent::insert(['type' => 'root']);
+					//$root = parent::fetchData(['context' => 'one', 'type' => 'root']);
+					$root = $this->getItems('root',null,'one',false);
+				}
+				$id = $root['id_homeblock'];
 
-        if (isset($this->action)) {
-            switch ($this->action) {
-                case 'edit':
-                    if (isset($this->content) && !empty($this->content)) {
-                        $root = parent::fetchData(array('context' => 'one', 'type' => 'root'));
-                        if (!$root) {
-                            parent::insert(array('type' => 'root'));
-                            $root = parent::fetchData(array('context' => 'one', 'type' => 'root'));
-                        }
-                        $id = $root['id_homeblock'];
+				foreach ($this->content as $lang => $content) {
+					if (empty($content['id'])) $content['id'] = $id;
+					$rootLang = $this->getItems('content', ['id' => $id, 'id_lang' => $lang], 'one', false);
+					$content['id_lang'] = $lang;
+					$content['published_homeblock'] = (int)!isset($content['published_homeblock']);
 
-                        foreach ($this->content as $lang => $content) {
-                            if (empty($content['id'])) $content['id'] = $id;
-                            $rootLang = $this->getItems('content', array('id' => $id, 'id_lang' => $lang), 'one', false);
-
-                            $content['id_lang'] = $lang;
-                            $content['published_homeblock'] = (!isset($content['published_homeblock']) ? 0 : 1);
-
-                            $config = array(
-                                'type' => 'content',
-                                'data' => $content
-                            );
-
-                            ($rootLang) ? $this->upd($config) : $this->add($config);
-                        }
-                        $this->message->json_post_response(true, 'update');
-                    }
-                    break;
-            }
-        }else{
+					($rootLang) ? $this->upd('content', $content) : $this->add('content', $content);
+				}
+				$this->message->json_post_response(true, 'update');
+			}
+		}
+		else {
             $this->modelLanguage->getLanguage();
-            $defaultLanguage = $this->collectionLanguage->fetchData(array('context'=>'one','type'=>'default'));
-            $last = parent::fetchData(array('context' => 'one', 'type' => 'root'));
-            $pages = $this->getBuildItems(array('type' => 'content'));
-            $this->template->assign('pages', $pages[$last['id_homeblock']]);
+            $last = parent::fetchData(['context' => 'one', 'type' => 'root']);
+			$data = $this->getItems('pages',null,'all',false);
+			$pages = [];
+			if(!empty($data)) {
+				foreach ($data as $page) {
+					if (!array_key_exists($page['id_homeblock'], $pages)) {
+						$pages[$page['id_homeblock']] = array();
+						$pages[$page['id_homeblock']]['id_homeblock'] = $page['id_homeblock'];
+					}
+					$pages[$page['id_homeblock']]['content'][$page['id_lang']] = [
+						'id_lang' => $page['id_lang'],
+						'name_homeblock' => $page['name_homeblock'],
+						'content_homeblock' => $page['content_homeblock'],
+						'published_homeblock' => $page['published_homeblock']
+					];
+				}
+			}
+            $this->template->assign('pages', empty($pages) ? [] : $pages[$last['id_homeblock']]);
             $this->template->display('index.tpl');
         }
     }
 }
-?>
